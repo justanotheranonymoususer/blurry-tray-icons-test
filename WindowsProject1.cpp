@@ -123,6 +123,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static bool hasTrayIcon = false;
+    static NOTIFYICONDATA nid;
+    static UINT WM_TASKBARCREATED = RegisterWindowMessage(L"TaskbarCreated");
+
     switch (message)
     {
     case WM_COMMAND:
@@ -136,6 +140,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
             case IDM_EXIT:
                 DestroyWindow(hWnd);
+                break;
+            case ID_FILE_REMOVETRAYICON:
+                if (hasTrayIcon)
+                {
+                    Shell_NotifyIcon(NIM_DELETE, &nid);
+                    hasTrayIcon = false;
+                }
+                break;
+            case ID_FILE_ADDTRAYICON:
+                ZeroMemory(&nid, sizeof(NOTIFYICONDATA));
+                nid.cbSize = sizeof(NOTIFYICONDATA);
+                nid.hWnd = hWnd;
+                nid.uID = 1;
+                nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+                nid.uCallbackMessage = WM_APP;
+                LoadIconMetric(hInst, MAKEINTRESOURCE(IDI_SMALL), LIM_SMALL, &nid.hIcon);
+                wcscpy_s(nid.szTip, L"Tray Icon");
+                Shell_NotifyIcon(NIM_ADD, &nid);
+                hasTrayIcon = true;
                 break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
@@ -151,10 +174,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+        if (hasTrayIcon)
+        {
+            Shell_NotifyIcon(NIM_DELETE, &nid);
+        }
         PostQuitMessage(0);
         break;
     default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
+        if (message == WM_TASKBARCREATED)
+        {
+            if (hasTrayIcon)
+            {
+                Shell_NotifyIcon(NIM_ADD, &nid);
+            }
+        }
+        else
+        {
+            return DefWindowProc(hWnd, message, wParam, lParam);
+        }
+        break;
     }
     return 0;
 }
